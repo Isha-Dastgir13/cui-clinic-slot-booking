@@ -1,0 +1,36 @@
+# One command starts the whole infrastructure diagram:
+#   Nginx (load balancer) -> app1 + app2 (REST + Socket.IO) -> Redis (cache + pub/sub) + PostgreSQL
+x-app: &app
+  build: .
+  restart: unless-stopped
+  environment: &env
+    DATABASE_URL: postgres://clinic:clinic@postgres:5432/clinic
+    REDIS_URL: redis://redis:6379
+    JWT_SECRET: change-this-secret-for-real-use
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment: { POSTGRES_USER: clinic, POSTGRES_PASSWORD: clinic, POSTGRES_DB: clinic }
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U clinic"], interval: 3s, timeout: 3s, retries: 20 }
+  redis:
+    image: redis:7-alpine
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 3s, timeout: 3s, retries: 20 }
+  app1:
+    <<: *app
+    environment: { <<: *env, INSTANCE: app-1 }
+  app2:
+    <<: *app
+    environment: { <<: *env, INSTANCE: app-2 }
+  nginx:
+    image: nginx:alpine
+    ports: ["3000:80"]
+    volumes: ["./nginx.conf:/etc/nginx/conf.d/default.conf:ro"]
+    depends_on: [app1, app2]
+
+volumes:
+  pgdata:

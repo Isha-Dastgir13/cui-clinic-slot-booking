@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CUI Clinic Slots</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef2ee;--card:#fff;--ink:#1f2d25;--moss:#3f6b4f;--moss-d:#2b4a37;--sage:#d9e5d6;--stone:#8a948c;--line:#dbe3dc;--sky:#dcebf0;--sand:#f1e8d4;--danger:#a4473a;
+--head:'Bricolage Grotesque',Georgia,serif;--body:'DM Sans',system-ui,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 var(--body)}
+h1,h2,h3{font-family:var(--head);margin:0;line-height:1.15}
+button,input,select{font:inherit}button{cursor:pointer}
+:focus-visible{outline:3px solid #7fb08f;outline-offset:2px}
+.btn{border:0;border-radius:12px;padding:.6rem 1.1rem;background:var(--moss);color:#fff;font-weight:600;transition:background .15s}
+.btn:hover{background:var(--moss-d)}.btn:disabled{background:#c9d1ca;color:#7b857d;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--moss-d);border:1.5px solid var(--line)}.btn.ghost:hover{background:var(--sage)}
+.btn.danger{background:transparent;color:var(--danger);border:1.5px solid #e6c9c4}.btn.danger:hover{background:#f7e6e3}
+.btn.sm{padding:.35rem .8rem;font-size:.9rem;border-radius:10px}
+input,select{width:100%;padding:.65rem .8rem;border:1.5px solid var(--line);border-radius:12px;background:#fff;margin-top:.25rem}
+label{font-size:.9rem;font-weight:500;display:block;margin-top:.9rem}
+/* auth */
+#auth{min-height:100vh;display:grid;grid-template-columns:1.1fr 1fr}
+.aside{background:var(--moss-d);color:#eaf2ea;padding:4rem;display:flex;flex-direction:column;justify-content:center;gap:2rem;position:relative;overflow:hidden}
+.aside:before{content:"";position:absolute;width:520px;height:520px;border-radius:50%;right:-220px;top:-180px;background:radial-gradient(circle,#4f8062,transparent 70%)}
+.aside h1{font-size:clamp(2.2rem,4vw,3.4rem);max-width:12ch;position:relative}
+.aside p{max-width:34ch;color:#c4d6c8;margin:0;position:relative}
+.chips{display:grid;grid-template-columns:repeat(3,auto);gap:.6rem;max-width:380px;position:relative}
+.chip{padding:.55rem .7rem;border-radius:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);text-align:center;font-weight:600;font-size:.95rem}
+.chip.flip{animation:flip 1.2s 1.2s forwards}
+@keyframes flip{to{background:var(--sand);color:#6b5a2e;text-decoration:line-through;text-decoration-thickness:2px}}
+.formwrap{display:grid;place-items:center;padding:2rem}
+.formcard{width:min(420px,100%)}
+.formcard h2{font-size:2rem;margin-bottom:.3rem}.muted{color:var(--stone)}
+.tabs2{display:flex;gap:.4rem;margin:1.2rem 0 .2rem}.tabs2 button{flex:1;border:0;padding:.55rem;border-radius:10px;background:transparent;font-weight:600;color:var(--stone)}
+.tabs2 button.on{background:var(--sage);color:var(--moss-d)}
+.demo{margin-top:1.4rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;font-size:.88rem}
+.demo button{border:1.5px dashed #b9c8bc;background:transparent;border-radius:999px;padding:.25rem .75rem;color:var(--moss-d)}
+.err{color:var(--danger);font-size:.92rem;min-height:1.3rem;margin-top:.7rem}
+/* app */
+#app{display:none;max-width:1100px;margin:0 auto;padding:1.2rem 1.2rem 4rem}
+header{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:.6rem 0 1.4rem}
+.brand{display:flex;align-items:center;gap:.7rem}.brand h2{font-size:1.5rem}
+.logo{width:38px;height:38px;border-radius:12px;background:var(--moss);display:grid;place-items:center;color:#fff;font-weight:700}
+.who{display:flex;align-items:center;gap:.8rem;font-size:.95rem}
+.role{background:var(--sage);color:var(--moss-d);border-radius:999px;padding:.1rem .7rem;font-weight:600;font-size:.85rem}
+.live{display:flex;align-items:center;gap:.35rem;font-size:.85rem;color:var(--stone)}.dot{width:9px;height:9px;border-radius:50%;background:#c2c8c3}.live.on .dot{background:#4aa36a;box-shadow:0 0 0 4px #dff0e4}
+nav{display:flex;gap:.4rem;border-bottom:1.5px solid var(--line);margin-bottom:1.5rem}
+nav button{border:0;background:none;padding:.7rem 1rem;font-weight:600;color:var(--stone);border-bottom:3px solid transparent;margin-bottom:-1.5px}
+nav button.on{color:var(--moss-d);border-color:var(--moss)}
+.bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;gap:1rem;flex-wrap:wrap}
+.day{margin:1.8rem 0 .8rem;font-size:1.25rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1rem}
+.slot{background:var(--card);border-radius:18px;padding:1.1rem 1.2rem;border:1.5px solid var(--line);display:flex;flex-direction:column;gap:.7rem;transition:transform .15s,border-color .15s}
+.slot.available:hover{transform:translateY(-2px);border-color:#9dbba5}
+.slot.taken{background:#f4f4f1}.slot.taken .time{color:var(--stone)}
+.time{font-family:var(--head);font-size:1.6rem;font-weight:700}
+.row{display:flex;justify-content:space-between;align-items:center;gap:.5rem}
+.pill{border-radius:999px;padding:.12rem .7rem;font-size:.82rem;font-weight:600}
+.available .pill,.confirmed{background:var(--sage);color:var(--moss-d)}
+.taken .pill{background:var(--sand);color:#6b5a2e}
+.pending{background:#f6ecc9;color:#7a5f10}.completed{background:var(--sky);color:#2d5a69}.cancelled{background:#ebebe8;color:#6d746e}
+.acts{display:flex;gap:.4rem;flex-wrap:wrap}
+.list{display:grid;gap:.8rem}
+.appt{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:1rem 1.2rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
+.appt b{font-family:var(--head);font-size:1.15rem}
+.empty{text-align:center;padding:3rem 1rem;color:var(--stone);background:var(--card);border:1.5px dashed var(--line);border-radius:18px}
+table{width:100%;border-collapse:collapse;background:var(--card);border-radius:16px;overflow:hidden;border:1.5px solid var(--line)}
+th,td{padding:.8rem 1rem;text-align:left;border-bottom:1px solid var(--line)}th{background:#f6f8f6;font-size:.9rem}
+dialog{border:0;border-radius:20px;padding:1.6rem;width:min(440px,92vw);box-shadow:0 20px 60px rgba(30,50,40,.25)}dialog::backdrop{background:rgba(30,45,37,.45)}
+.toasts{position:fixed;right:1rem;bottom:1rem;display:grid;gap:.5rem;z-index:20}
+.toast{background:var(--moss-d);color:#fff;padding:.75rem 1.1rem;border-radius:14px;max-width:320px;box-shadow:0 8px 24px rgba(0,0,0,.2);animation:in .25s}
+.toast.bad{background:var(--danger)}@keyframes in{from{opacity:0;transform:translateY(8px)}}
+@media(max-width:820px){#auth{grid-template-columns:1fr}.aside{padding:2rem}.chips{display:none}}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<section id="auth">
+  <div class="aside">
+    <h1>Book your campus clinic visit</h1>
+    <p>Pick an open slot, get a confirmation from clinic staff, and watch availability change live.</p>
+    <div class="chips"><div class="chip">09:00</div><div class="chip">09:30</div><div class="chip flip">10:00</div><div class="chip">10:30</div><div class="chip">11:00</div><div class="chip">11:30</div></div>
+  </div>
+  <div class="formwrap"><div class="formcard">
+    <h2 id="ftitle">Welcome back</h2><div class="muted">CUI Clinic Slot Booking</div>
+    <div class="tabs2"><button id="tLogin" class="on">Sign in</button><button id="tReg">Create account</button></div>
+    <div id="nameRow" hidden><label>Full name<input id="name" autocomplete="name"></label></div>
+    <label>Email<input id="email" type="email" autocomplete="email"></label>
+    <label>Password<input id="pw" type="password" autocomplete="current-password"></label>
+    <div class="err" id="aerr" role="alert"></div>
+    <button class="btn" id="go" style="width:100%">Sign in</button>
+    <div class="demo"><span class="muted">Try a demo account:</span>
+      <button data-e="student@cui.edu.pk" data-p="Student@123">Student</button>
+      <button data-e="staff@cui.edu.pk" data-p="Staff@123">Staff</button>
+      <button data-e="admin@cui.edu.pk" data-p="Admin@123">Admin</button></div>
+  </div></div>
+</section>
+
+<main id="app">
+  <header>
+    <div class="brand"><div class="logo">+</div><h2>Clinic Slots</h2></div>
+    <div class="who"><span class="live" id="live"><span class="dot"></span><span id="livet">Offline</span></span>
+      <span id="uname"></span><span class="role" id="urole"></span><button class="btn ghost sm" id="out">Sign out</button></div>
+  </header>
+  <nav id="nav"></nav>
+  <div id="view"></div>
+</main>
+<dialog id="dlg"></dialog>
+<div class="toasts" id="toasts"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let token=localStorage.token,user=JSON.parse(localStorage.user||'null'),slots=[],appts=[],users=[],tab='slots',socket,mode='login';const selfBooked=new Set();
+const staff=()=>user.role!=='student';
+
+async function api(path,method='GET',body){
+  const r=await fetch('/api/v1'+path,{method,headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},body:body?JSON.stringify(body):undefined});
+  if(r.status===204)return null;
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok){if(r.status===401&&token&&!path.startsWith('/auth'))logout();throw Object.assign(new Error(d.error||'Something went wrong'),{status:r.status})}
+  return d;
+}
+function toast(msg,bad){const t=document.createElement('div');t.className='toast'+(bad?' bad':'');t.textContent=msg;$('#toasts').append(t);setTimeout(()=>t.remove(),4200)}
+const fmtDate=d=>new Date(d+'T00:00').toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long'});
+
+/* auth */
+function setMode(m){mode=m;$('#tLogin').classList.toggle('on',m==='login');$('#tReg').classList.toggle('on',m==='reg');$('#nameRow').hidden=m==='login';
+  $('#go').textContent=m==='login'?'Sign in':'Create account';$('#ftitle').textContent=m==='login'?'Welcome back':'Join the clinic portal';$('#aerr').textContent=''}
+$('#tLogin').onclick=()=>setMode('login');$('#tReg').onclick=()=>setMode('reg');
+document.querySelectorAll('.demo button').forEach(b=>b.onclick=()=>{setMode('login');$('#email').value=b.dataset.e;$('#pw').value=b.dataset.p});
+$('#go').onclick=async()=>{
+  try{const d=await api(mode==='login'?'/auth/login':'/auth/register','POST',{name:$('#name').value,email:$('#email').value,password:$('#pw').value});
+    token=d.token;user=d.user;localStorage.token=token;localStorage.user=JSON.stringify(user);start()}
+  catch(e){$('#aerr').textContent=e.message}
+};
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&$('#auth').style.display!=='none'&&e.target.tagName==='INPUT')$('#go').click()});
+function logout(){localStorage.clear();token=user=null;socket&&socket.disconnect();$('#app').style.display='none';$('#auth').style.display='grid'}
+$('#out').onclick=logout;
+
+/* app */
+async function start(){
+  $('#auth').style.display='none';$('#app').style.display='block';
+  $('#uname').textContent=user.name;$('#urole').textContent=user.role;tab='slots';
+  const tabs=[['slots','Clinic slots'],['appts',user.role==='student'?'My appointments':'All appointments']];
+  if(user.role==='admin')tabs.push(['users','Users & roles']);
+  $('#nav').innerHTML=tabs.map(([k,l])=>`<button data-t="${k}" class="${k===tab?'on':''}">${l}</button>`).join('');
+  $('#nav').onclick=e=>{const t=e.target.dataset.t;if(!t)return;tab=t;document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));render()};
+  connect();await refresh();
+}
+async function refresh(){
+  try{[slots,appts]=await Promise.all([api('/clinic-slots'),api('/appointments')]);if(user.role==='admin')users=await api('/users');render()}
+  catch(e){toast(e.message,true)}
+}
+function connect(){
+  socket&&socket.disconnect();socket=io({auth:{token},transports:['websocket']});
+  socket.on('connect',()=>{$('#live').classList.add('on');$('#livet').textContent='Live'});
+  socket.on('hello',e=>{$('#livet').textContent='Live · '+e.instance});
+  socket.on('disconnect',()=>{$('#live').classList.remove('on');$('#livet').textContent='Offline'});
+  const setStatus=(id,status)=>{const s=slots.find(x=>x.id===id);if(s){s.status=status;render()}};
+  socket.on('slot:taken',e=>{setStatus(e.slotId,'taken');if(selfBooked.delete(e.slotId))return;const s=slots.find(x=>x.id===e.slotId);s&&toast(`${s.startTime} with ${s.doctor} was just taken`)});
+  socket.on('slot:released',e=>{setStatus(e.slotId,'available');const s=slots.find(x=>x.id===e.slotId);s&&toast(`${s.startTime} with ${s.doctor} is open again`)});
+  socket.on('slot:changed',()=>refresh());
+  socket.on('appointment:updated',async e=>{await refresh();if(!staff())toast(`Your appointment is now ${e.status}`)});
+}
+const mine=slotId=>appts.some(a=>a.slotId===slotId&&a.status!=='cancelled'&&a.student?.id===user.id);
+function render(){({slots:renderSlots,appts:renderAppts,users:renderUsers})[tab]()}
+
+function renderSlots(){
+  const days=[...new Set(slots.map(s=>s.date))];
+  $('#view').innerHTML=`<div class="bar"><div><h3>${staff()?'Manage clinic slots':'Open slots'}</h3><span class="muted">${slots.filter(s=>s.status==='available').length} available right now</span></div>
+    ${staff()?'<button class="btn" id="newSlot">Add slot</button>':''}</div>`+
+  (days.length?days.map(d=>`<h3 class="day">${fmtDate(d)}</h3><div class="grid">${slots.filter(s=>s.date===d).map(slotCard).join('')}</div>`).join(''):'<div class="empty">No slots yet. Staff can add the first one.</div>');
+  $('#newSlot')&&($('#newSlot').onclick=()=>slotDialog());
+}
+function slotCard(s){
+  const t=s.status==='taken',m=mine(s.id);
+  return `<article class="slot ${s.status}"><div class="row"><span class="time">${esc(s.startTime)}<span class="muted" style="font-size:1rem"> – ${esc(s.endTime)}</span></span><span class="pill">${m?'Yours':t?'Taken':'Open'}</span></div>
+  <div>${esc(s.doctor)}</div><div class="acts">
+  ${user.role==='student'?`<button class="btn sm" data-book="${s.id}" ${t?'disabled':''}>${t?'Unavailable':'Book this slot'}</button>`:
+  `<button class="btn ghost sm" data-bookings="${s.id}">Bookings</button><button class="btn ghost sm" data-edit="${s.id}">Edit</button><button class="btn danger sm" data-del="${s.id}">Delete</button>`}</div></article>`;
+}
+$('#view').addEventListener('click',async e=>{
+  const d=e.target.dataset;
+  try{
+    if(d.book){selfBooked.add(d.book);await api(`/clinic-slots/${d.book}/appointments`,'POST');toast('Booked. Waiting for staff to confirm.');await refresh()}
+    else if(d.edit)slotDialog(slots.find(s=>s.id===d.edit));
+    else if(d.del&&confirm('Delete this slot?')){await api('/clinic-slots/'+d.del,'DELETE');toast('Slot deleted');await refresh()}
+    else if(d.bookings)bookingsDialog(d.bookings);
+    else if(d.st){await api(`/appointments/${d.id}/status`,'PATCH',{status:d.st});toast('Appointment '+d.st);await refresh()}
+  }catch(err){if(d.book)selfBooked.delete(d.book);toast(err.message,true);if(err.status===409)refresh()}
+});
+
+function actions(a){
+  const b=[];
+  if(staff()&&a.status==='pending')b.push(['confirmed','Confirm','']);
+  if(staff()&&a.status==='confirmed')b.push(['completed','Mark completed','']);
+  if(['pending','confirmed'].includes(a.status))b.push(['cancelled','Cancel','danger']);
+  return b.map(([s,l,c])=>`<button class="btn ${c||'ghost'} sm" data-id="${a.id}" data-st="${s}">${l}</button>`).join('');
+}
+function renderAppts(){
+  $('#view').innerHTML=`<div class="bar"><h3>${staff()?'All appointments':'My appointments'}</h3></div><div class="list">`+
+  (appts.length?appts.map(a=>`<div class="appt"><div><b>${esc(a.slot?.startTime)} – ${esc(a.slot?.endTime)}</b> <span class="muted">${a.slot?fmtDate(a.slot.date):''}</span><br>${esc(a.slot?.doctor)}${staff()?` · <span class="muted">${esc(a.student?.name)}</span>`:''}</div>
+  <div class="acts"><span class="pill ${a.status}">${a.status}</span>${actions(a)}</div></div>`).join(''):'<div class="empty">No appointments yet. Pick an open slot to book your first visit.</div>')+'</div>';
+}
+function renderUsers(){
+  $('#view').innerHTML=`<div class="bar"><h3>Users & roles</h3></div><table><tr><th>Name</th><th>Email</th><th>Role</th></tr>${users.map(u=>`<tr><td>${esc(u.name)}</td><td>${esc(u.email)}</td><td>
+  <select data-uid="${u.id}" ${u.id===user.id?'disabled':''} style="margin:0;width:auto">${['student','staff','admin'].map(r=>`<option ${r===u.role?'selected':''}>${r}</option>`).join('')}</select></td></tr>`).join('')}</table>`;
+}
+$('#view').addEventListener('change',async e=>{
+  if(!e.target.dataset.uid)return;
+  try{await api(`/users/${e.target.dataset.uid}/role`,'PATCH',{role:e.target.value});toast('Role updated')}catch(err){toast(err.message,true)}
+});
+
+/* dialogs */
+function slotDialog(s){
+  const today=new Date().toISOString().slice(0,10);
+  $('#dlg').innerHTML=`<h3>${s?'Edit slot':'Add a slot'}</h3>
+  <label>Date<input id="sd" type="date" value="${s?.date||today}"></label>
+  <label>Start time<input id="ss" type="time" value="${s?.startTime||'09:00'}"></label>
+  <label>End time<input id="se" type="time" value="${s?.endTime||'09:30'}"></label>
+  <label>Doctor<input id="sdoc" value="${esc(s?.doctor||'')}" placeholder="Dr. Name"></label>
+  <div class="err" id="serr"></div><div class="acts" style="justify-content:flex-end"><button class="btn ghost" id="sc">Close</button><button class="btn" id="sv">Save slot</button></div>`;
+  $('#dlg').showModal();$('#sc').onclick=()=>$('#dlg').close();
+  $('#sv').onclick=async()=>{
+    const body={date:$('#sd').value,startTime:$('#ss').value,endTime:$('#se').value,doctor:$('#sdoc').value};
+    try{await api(s?'/clinic-slots/'+s.id:'/clinic-slots',s?'PATCH':'POST',body);$('#dlg').close();toast('Slot saved');await refresh()}catch(e){$('#serr').textContent=e.message}
+  };
+}
+async function bookingsDialog(id){
+  const list=await api(`/clinic-slots/${id}/appointments`),s=slots.find(x=>x.id===id);
+  $('#dlg').innerHTML=`<h3>Bookings for ${esc(s.startTime)} · ${esc(s.doctor)}</h3><div class="list" style="margin:1rem 0">${list.length?list.map(a=>`<div class="row"><span>${esc(a.student?.name)}</span><span class="pill ${a.status}">${a.status}</span></div>`).join(''):'<div class="empty">Nobody has booked this slot.</div>'}</div><button class="btn ghost" id="sc">Close</button>`;
+  $('#dlg').showModal();$('#sc').onclick=()=>$('#dlg').close();
+}
+
+if(token&&user)api('/auth/me').then(u=>{user=u;localStorage.user=JSON.stringify(u);start()}).catch(logout);
+</script>
+</body>
+</html>

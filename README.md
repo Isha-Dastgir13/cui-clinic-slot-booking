@@ -1,47 +1,135 @@
-# CUI Clinic Slot Booking (Variant 3)
+# ClinicSlot: Real-Time Clinic Appointment Booking
 
-Clinic Slot (A) / Appointment (B) / 409 "Slot already taken" / live event `slot:taken`.
-Built to match the handwritten design: Client -> Reverse proxy / load balancer -> 2 app instances
-(REST + Socket.IO) -> Redis (cache + pub/sub) + PostgreSQL.
+A full-stack appointment booking system for a campus clinic. Staff publish time slots, students book them, staff approve and manage the appointments, and everyone sees availability change **live**, with no page refresh.
 
-## Run in VS Code
-1. Install and start **Docker Desktop** (https://www.docker.com/products/docker-desktop). Wait until it says "running".
-2. Unzip, then File > Open Folder in VS Code.
-3. Open the terminal (Ctrl + `) and run:
+Built to run like a small production system: a load balancer in front of two app instances, Redis for caching and real-time messaging, and PostgreSQL as the source of truth. The whole stack starts with one command.
 
-       docker compose up --build
+## Highlights
 
-   First run downloads images and takes a few minutes. Wait for `[app-1] listening on :3000` and `[app-2] listening on :3000`.
-4. Open http://localhost:3000
-5. Stop with Ctrl + C. Reset the database with `docker compose down -v`.
+- **Real-time updates.** When a slot is booked or released, every open browser updates instantly over WebSockets. Students only receive updates about their own bookings.
+- **No double booking.** A database-level rule allows only one active appointment per slot, so two people clicking at the same moment cannot both succeed. The second gets `409 Conflict`.
+- **Fast browsing.** The most frequent read, listing slots, is served from a Redis cache and invalidated on every change.
+- **Scales horizontally.** Two stateless app instances run behind Nginx. JWT auth and Redis pub/sub mean any instance can serve any user, and live events reach clients on both.
+- **Role-based access.** Three roles (student, staff, admin) with permission checks on every route.
+- **Clear appointment lifecycle.** `pending` → `confirmed` → `completed` or `cancelled`. Status only moves forward.
 
-Demo accounts: student@cui.edu.pk / Student@123, staff@cui.edu.pk / Staff@123, admin@cui.edu.pk / Admin@123
+## Architecture
 
-## How the code matches your design
-| Your design | Where |
+```mermaid
+flowchart LR
+    C["Browser<br/>(Student / Staff / Admin)"] -->|HTTP + WebSocket| N["Nginx<br/>load balancer"]
+    N --> A1["App instance 1<br/>REST + Socket.IO"]
+    N --> A2["App instance 2<br/>REST + Socket.IO"]
+    A1 --> R[("Redis<br/>cache + pub/sub")]
+    A2 --> R
+    A1 --> P[("PostgreSQL")]
+    A2 --> P
+```
+
+| Layer | Technology |
 |---|---|
-| Reverse proxy / load balancer, TLS-ready | `nginx.conf` (round-robin to app1 and app2) |
-| App instance 1 / 2, API + WebSocket | `server.js` run twice (`INSTANCE=app-1/app-2`); header shows which one you are on |
-| Redis cache (browse slots, lazy load, invalidation) | `cachedSlots()` / `invalidate()` in `server.js`, 60s TTL, `X-Cache: HIT/MISS` header |
-| Redis pub/sub for live events | `@socket.io/redis-adapter`: an event on one instance reaches clients on the other |
-| Managed PostgreSQL | `postgres` service, tables in `db/schema.sql` |
-| Data model User(1)-(N) slots, User(1)-(N) appointments, Slot(1)-(N) appointments | `users`, `clinic_slots.created_by`, `appointments` |
-| Auth: stateless JWT | `auth` middleware |
-| RBAC matrix | `allow(...)` guards on every route (403 on deny) |
-| Preventing race conditions | partial unique index `one_active_appointment_per_slot` -> second booking gets 409 |
+| Load balancer / reverse proxy | Nginx |
+| Backend | Node.js, Express |
+| Real-time | Socket.IO with the Redis adapter |
+| Cache and pub/sub | Redis |
+| Database | PostgreSQL |
+| Auth | Stateless JWT, bcrypt password hashing |
+| Frontend | Vanilla HTML, CSS and JavaScript |
+| Infrastructure | Docker Compose |
 
-## API (all under /api/v1, JWT in Authorization: Bearer ...)
-- POST /auth/register, POST /auth/login, GET /auth/me
-- GET /clinic-slots (cached), GET /clinic-slots/:id, POST, PATCH, DELETE (staff/admin)
-- POST /clinic-slots/:id/appointments (student; 409 if taken)
-- GET /clinic-slots/:id/appointments (staff, nested URI), GET /appointments, GET /appointments/:id
-- PATCH /appointments/:id/status (pending > confirmed > completed or cancelled; forward only)
-- GET /users, PATCH /users/:id/role (admin)
+## Quick start
 
-## Live events (Socket.IO, JWT-checked)
-`slot:taken`, `slot:released`, `slot:changed` go to everyone. `appointment:updated` goes only to the owning student
-(room `user:<id>`) and to staff/admin (room `staff`).
+You only need [Docker Desktop](https://www.docker.com/products/docker-desktop).
 
-## Try the load balancer and live updates
-Open two browser windows (student and staff). Book a slot as the student: the staff window updates instantly,
-even if the two windows are connected to different instances (look at "Live · app-1/app-2" top right).
+```bash
+git clone https://github.com/YOUR-USERNAME/YOUR-REPO.git
+cd YOUR-REPO
+docker compose up --build
+```
+
+When you see `[app-1] listening on :3000` and `[app-2] listening on :3000`, open **http://localhost:3000**.
+
+Stop with `Ctrl + C`. Reset all data with `docker compose down -v`.
+
+**Demo accounts**
+
+| Role | Email | Password |
+|---|---|---|
+| Student | student@cui.edu.pk | Student@123 |
+| Staff | staff@cui.edu.pk | Staff@123 |
+| Admin | admin@cui.edu.pk | Admin@123 |
+
+**Try it:** open two browser windows, one as a student and one as staff. Book a slot as the student and watch the staff window update instantly. The top-right indicator shows which app instance each window is connected to.
+
+## How it works
+
+### Data model
+```
+users (1) ──< clinic_slots       staff publish slots
+users (1) ──< appointments       students book appointments
+clinic_slots (1) ──< appointments
+```
+
+A partial unique index on `appointments(slot_id) WHERE status <> 'cancelled'` is what guarantees one active booking per slot, even across multiple app instances.
+
+### Caching
+Slot listing uses cache-aside with lazy loading and a 60 second TTL. Every booking, cancellation or slot edit bumps a version number in Redis, which drops all older cached lists at once. If Redis is down, the API falls back to PostgreSQL. Responses carry an `X-Cache: HIT` or `MISS` header.
+
+### Real-time events
+
+| Event | When | Who receives it |
+|---|---|---|
+| `slot:taken` | A student books a slot | Everyone |
+| `slot:released` | An appointment is cancelled | Everyone |
+| `slot:changed` | A slot is created, edited or deleted | Everyone |
+| `appointment:updated` | Appointment status changes | The owning student, plus staff and admin |
+
+### Access control
+
+| Action | Student | Staff | Admin |
+|---|---|---|---|
+| View slots | Yes | Yes | Yes |
+| Create, edit, delete slots | No | Yes | Yes |
+| Book an appointment | Yes | No | No |
+| View and cancel own appointments | Yes | n/a | n/a |
+| View all appointments | No | Yes | Yes |
+| Confirm, complete or cancel any appointment | No | Yes | Yes |
+| Manage user roles | No | No | Yes |
+
+## API overview
+
+Base URL `/api/v1`, with `Authorization: Bearer <token>`.
+
+| Method | Endpoint | Access |
+|---|---|---|
+| POST | `/auth/register`, `/auth/login` | Public |
+| GET | `/auth/me` | Any user |
+| GET | `/clinic-slots`, `/clinic-slots/:id` | Any user |
+| POST, PATCH, DELETE | `/clinic-slots`, `/clinic-slots/:id` | Staff, Admin |
+| POST | `/clinic-slots/:id/appointments` | Student |
+| GET | `/clinic-slots/:id/appointments` | Staff, Admin |
+| GET | `/appointments`, `/appointments/:id` | Any user (students see only their own) |
+| PATCH | `/appointments/:id/status` | Student (cancel only), Staff, Admin |
+| GET, PATCH | `/users`, `/users/:id/role` | Admin |
+
+Common responses: `400` invalid input, `401` not signed in, `403` role not allowed, `404` not found, `409` slot already taken, `422` invalid status change.
+
+## Project structure
+
+```
+.
+├── server.js            # API, auth, RBAC, cache, Socket.IO
+├── db/schema.sql        # PostgreSQL schema
+├── public/index.html    # Frontend
+├── docker-compose.yml   # Nginx, 2 app instances, Redis, PostgreSQL
+├── nginx.conf           # Load balancer configuration
+├── Dockerfile
+└── package.json
+```
+
+## Possible next steps
+
+- HTTPS termination at Nginx
+- Automated API tests
+- Email or SMS reminders for confirmed appointments
+- Admin analytics for busy hours and no-shows
